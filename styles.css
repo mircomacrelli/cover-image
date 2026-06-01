@@ -4,9 +4,21 @@
     margin-inline: var(--content-margin);
 }
 
+@property --cover-image-max-width {
+    syntax: '<length>';
+    inherits: false;
+    initial-value: 256px;
+}
+
+@property --cover-image-max-height {
+    syntax: '<length>';
+    inherits: false;
+    initial-value: 256px;
+}
+
 .cover-container img {
-    max-width: 256px;
-    max-height: 256px;
+    max-width: var(--cover-image-max-width);
+    max-height: var(--cover-image-max-height);
 }
 
 .mod-frontmatter > .cover-container {
