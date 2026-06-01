@@ -27,7 +27,7 @@ export default class ObsidianCoverImage extends Plugin {
 		);
 	}
 
-	async onunload() {
+	onunload() {
 		IMAGES.clear();
 		for (const container of CONTAINERS.keys()) {
 			container.remove();
@@ -67,7 +67,7 @@ export default class ObsidianCoverImage extends Plugin {
 
 
 		for (const container of CONTAINERS.keys()) {
-			if (!document.body.contains(container)) {
+			if (!activeDocument.body.contains(container)) {
 				CONTAINERS.delete(container);
 			}
 		}
