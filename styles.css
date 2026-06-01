@@ -1,0 +1,15 @@
+.cover-container {
+    max-width: var(--max-width);
+    width: var(--line-width);
+    margin-inline: var(--content-margin);
+}
+
+.cover-container img {
+    max-width: 256px;
+    max-height: 256px;
+}
+
+.mod-frontmatter > .cover-container {
+    margin-inline: 0;
+    margin-bottom: 0.75em;
+}
