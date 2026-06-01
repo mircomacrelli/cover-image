@@ -1,7 +1,7 @@
 {
 	"id": "cover-image",
 	"name": "Cover Image",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"minAppVersion": "0.15.0",
 	"description": "Automatically include the image linked in the property cover at the top of the note body",
 	"author": "Mirco Macrelli",
