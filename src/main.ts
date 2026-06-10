@@ -1,4 +1,4 @@
-import {CachedMetadata, MarkdownView, Plugin, TFile} from 'obsidian';
+import {CachedMetadata, MarkdownView, Plugin, TAbstractFile, TFile} from 'obsidian';
 import CoverMarkdownPostProcessor from './CoverMarkdownPostProcessor'
 
 export const IMAGES = new Map<string, string>();
@@ -15,13 +15,19 @@ export default class ObsidianCoverImage extends Plugin {
 		);
 
 		this.registerEvent(
+			this.app.vault.on('rename', async (file: TAbstractFile, oldPath: string) => {
+				this.onRename(file, oldPath);
+			})
+		);
+
+		this.registerEvent(
 			this.app.workspace.on('layout-change', async () => {
 				this.onLayoutChange();
 			})
 		);
 
 		this.registerEvent(
-			this.app.metadataCache.on('changed', (file, data, cache) => {
+			this.app.metadataCache.on('changed', async (file, data, cache) => {
 				this.onChanged(file, data, cache);
 			})
 		);
@@ -35,7 +41,17 @@ export default class ObsidianCoverImage extends Plugin {
 		CONTAINERS.clear();
 	}
 
-	onLayoutChange() {
+	private onRename(file: TAbstractFile, oldPath: string) {
+		if (file instanceof TFile && file.extension === 'md') {
+			const cover = IMAGES.get(oldPath);
+			if (cover) {
+				IMAGES.delete(oldPath);
+				IMAGES.set(file.path, cover);
+			}
+		}
+	}
+
+	private onLayoutChange() {
 		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 		if (view) {
 			const file = view.file;
@@ -73,7 +89,7 @@ export default class ObsidianCoverImage extends Plugin {
 		}
 	}
 
-	onChanged(file: TFile, data: string, cache: CachedMetadata) {
+	private onChanged(file: TFile, data: string, cache: CachedMetadata) {
 		if (file.extension !== 'md') {
 			return;
 		}
@@ -104,7 +120,7 @@ export default class ObsidianCoverImage extends Plugin {
 		}
 	}
 
-	removeCover(file: TFile) {
+	private removeCover(file: TFile) {
 		for (const [container, f] of CONTAINERS) {
 			if (file.path === f) {
 				const img = container.find('img');
@@ -130,7 +146,7 @@ export default class ObsidianCoverImage extends Plugin {
 		}
 	}
 
-	onFileOpen(file: TFile|null) {
+	private onFileOpen(file: TFile | null) {
 		if (file) {
 			if (file.extension !== 'md') {
 				return;
@@ -160,7 +176,7 @@ export default class ObsidianCoverImage extends Plugin {
 		}
 	}
 
-	getSrc(file: TFile, metadata: CachedMetadata): string|null {
+	private getSrc(file: TFile, metadata: CachedMetadata): string | null {
 		const frontmatter = metadata.frontmatter;
 		if (frontmatter) {
 			let cover = frontmatter.cover as string;
