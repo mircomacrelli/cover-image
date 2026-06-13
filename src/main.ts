@@ -1,198 +1,133 @@
-import {CachedMetadata, MarkdownView, Plugin, TAbstractFile, TFile} from 'obsidian';
-import CoverMarkdownPostProcessor from './CoverMarkdownPostProcessor'
-
-export const IMAGES = new Map<string, string>();
-export const CONTAINERS = new Map<HTMLElement, string>();
-
-export default class ObsidianCoverImage extends Plugin {
-	async onload(): Promise<void> {
-		this.registerMarkdownPostProcessor(new CoverMarkdownPostProcessor().instance());
-
-		this.registerEvent(
-			this.app.workspace.on('file-open', async (file) => {
-				this.onFileOpen(file);
-			})
-		);
-
-		this.registerEvent(
-			this.app.vault.on('rename', async (file: TAbstractFile, oldPath: string) => {
-				this.onRename(file, oldPath);
-			})
-		);
-
-		this.registerEvent(
-			this.app.workspace.on('layout-change', async () => {
-				this.onLayoutChange();
-			})
-		);
-
-		this.registerEvent(
-			this.app.metadataCache.on('changed', async (file, data, cache) => {
-				this.onChanged(file, data, cache);
-			})
-		);
-	}
-
-	onunload() {
-		IMAGES.clear();
-		for (const container of CONTAINERS.keys()) {
-			container.remove();
-		}
-		CONTAINERS.clear();
-	}
-
-	private onRename(file: TAbstractFile, oldPath: string) {
-		if (file instanceof TFile && file.extension === 'md') {
-			const cover = IMAGES.get(oldPath);
-			if (cover) {
-				IMAGES.delete(oldPath);
-				IMAGES.set(file.path, cover);
-			}
-		}
-	}
-
-	private onLayoutChange() {
-		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-		if (view) {
-			const file = view.file;
-			if (file) {
-				if (file.extension !== 'md') {
-					return;
-				}
-				const container = view.contentEl.find('.cover-container');
-				if (container) {
-					const cover = IMAGES.get(file.path);
-					if (cover) {
-						let img = container.find('img');
-						if (!img) {
-							img = container.createEl('img');
-							img.setAttribute('src', cover);
-							container.append(img);
-						} else {
-							if (cover !== img.getAttribute('src')) {
-								img.setAttribute('src', cover);
-							}
-						}
-					} else {
-						this.removeCover(file);
-					}
-				}
-				CONTAINERS.set(container, file.path);
-			}
-		}
+import {MarkdownView, Plugin, TFile, WorkspaceLeaf} from 'obsidian';
 
 
-		for (const container of CONTAINERS.keys()) {
-			if (!activeDocument.body.contains(container)) {
-				CONTAINERS.delete(container);
-			}
-		}
-	}
+const IMAGE_TYPES: Set<string> = new Set<string>([
+    'avif',
+    'bmp',
+    'gif',
+    'jpeg',
+    'jpg',
+    'png',
+    'svg',
+    'webp'
+]);
+const SELECTORS: Map<string, string> = new Map<string, string>([
+    ['preview', '.markdown-preview-view'],
+    ['source', '.cm-sizer']
+]);
+const COVER_CONTAINER = 'cover-container';
 
-	private onChanged(file: TFile, data: string, cache: CachedMetadata) {
-		if (file.extension !== 'md') {
-			return;
-		}
-		const src = this.getSrc(file, cache);
-		if (src) {
-			const oldSrc = IMAGES.get(file.path);
+export default class CoverImage extends Plugin {
+    async onload(): Promise<void> {
+        console.debug('loading plugin cover-image');
 
-			if (!oldSrc) {
-				IMAGES.set(file.path, src);
-			}
+        this.registerEvent(
+            this.app.workspace.on('layout-change', () => {
+                this.updateLeaves();
+            })
+        );
 
-			if (src !== oldSrc) {
-				for (const [container, f] of CONTAINERS) {
-					if (file.path === f) {
-						let img = container.find('img');
-						if (!img) {
-							img = container.createEl('img');
-							img.setAttribute('src', src);
-							container.append(img);
-						} else {
-							img.setAttribute('src', src);
-						}
-					}
-				}
-			}
-		} else {
-			this.removeCover(file);
-		}
-	}
+        this.registerEvent(
+            this.app.metadataCache.on('changed', (file: TFile) => {
+                this.updateLeaves(file);
+            })
+        );
 
-	private removeCover(file: TFile) {
-		for (const [container, f] of CONTAINERS) {
-			if (file.path === f) {
-				const img = container.find('img');
-				if (img) {
-					img.remove();
-				}
-			}
-		}
+        this.app.workspace.onLayoutReady(() => {
+            this.updateLeaves();
+        });
+    }
 
-		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-		if (view) {
-			const container = view.contentEl.find('.cover-container');
-			if (container) {
-				const img = container.find('img');
-				if (img) {
-					img.remove();
-				}
-			}
-		}
+    onunload(): void {
+        this.app.workspace.iterateAllLeaves((leaf) => {
+            const [view] = this.getViewAndFile(leaf);
+            if (view) {
+                this.removeCover(view);
+            }
+        });
+        console.debug('unloaded plugin cover-image');
+    }
 
-		if (IMAGES.has(file.path)) {
-			IMAGES.delete(file.path);
-		}
-	}
+    private updateLeaves(modified: TFile | null = null): void {
+        this.app.workspace.iterateAllLeaves((leaf) => {
+            const [view, file] = this.getViewAndFile(leaf, modified);
+            if (view && file) {
+                const cover = this.getCover(file);
+                if (cover) {
+                    this.updateCover(cover, view);
+                } else {
+                    this.removeCover(view);
+                }
+            }
+        });
+    }
 
-	private onFileOpen(file: TFile | null) {
-		if (file) {
-			if (file.extension !== 'md') {
-				return;
-			}
-			const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-			if (view) {
-				const containers = view.contentEl.find('.cover-container');
-				if (!containers) {
-					const editor = view.contentEl.find('.cm-sizer');
-					if (editor) {
-						const coverContainer = editor.createDiv();
-						coverContainer.classList.add('cover-container');
-						CONTAINERS.set(coverContainer, file.path);
-						editor.prepend(coverContainer);
-					}
-				}
-			}
-			if (!IMAGES.has(file.path)) {
-				const metadata = this.app.metadataCache.getFileCache(file);
-				if (metadata) {
-					const src = this.getSrc(file, metadata);
-					if (src) {
-						IMAGES.set(file.path, src);
-					}
-				}
-			}
-		}
-	}
+    private updateCover(cover: string, view: MarkdownView): void {
+        const selector = SELECTORS.get(view.getMode());
+        if (selector) {
+            const container = view.contentEl.querySelector(selector);
+            if (container) {
+                let div = container.querySelector(`.${COVER_CONTAINER}`);
+                if (!div) {
+                    div = createDiv({cls: COVER_CONTAINER});
+                }
+                let img = div.firstElementChild;
+                if (!img) {
+                    img = createEl('img');
+                    div.append(img);
+                }
+                if (cover !== img.getAttribute('src')) {
+                    img.setAttribute('src', cover);
+                }
+                if (!div.parentElement) {
+                    container.prepend(div);
+                }
+            }
+        }
+    }
 
-	private getSrc(file: TFile, metadata: CachedMetadata): string | null {
-		const frontmatter = metadata.frontmatter;
-		if (frontmatter) {
-			let cover = frontmatter.cover as string;
-			if (cover) {
-				if (cover.startsWith('[[')) {
-					cover = cover.slice(2, -2);
-				}
-				const attachment = this.app.metadataCache.getFirstLinkpathDest(cover, file.path);
-				if (attachment) {
-					const src = this.app.vault.getResourcePath(attachment);
-					if (src) {
-						return src;
-					}
-				}
-			}
-		}
-		return null;
-	}
+    private removeCover(view: MarkdownView): void {
+        for (const selector of SELECTORS.values()) {
+            const container = view.contentEl.querySelector(selector);
+            if (container) {
+                let div = container.querySelector(`.${COVER_CONTAINER}`);
+                if (div) {
+                    div.remove();
+                }
+            }
+        }
+    }
+
+    private getViewAndFile(leaf: WorkspaceLeaf, modified: TFile | null = null): [view: MarkdownView | null, file: TFile | null] {
+        if (!leaf.isDeferred) {
+            const view = leaf.view;
+            if (view instanceof MarkdownView) {
+                const file = view.file;
+                if (file && file.extension === 'md') {
+                    if (!modified || modified.path === file.path) {
+                        return [view, file];
+                    }
+                }
+            }
+        }
+        return [null, null];
+    }
+
+    private getCover(file: TFile): string | null {
+        const metadata = this.app.metadataCache.getFileCache(file);
+        if (metadata) {
+            const frontmatter = metadata.frontmatter;
+            if (frontmatter) {
+                const cover = frontmatter.cover as string;
+                if (cover && cover.startsWith('[[') && cover.endsWith(']]')) {
+                    const path = cover.slice(2, -2).trim();
+                    const attachment = this.app.metadataCache.getFirstLinkpathDest(path, file.path);
+                    if (attachment && IMAGE_TYPES.has(attachment.extension)) {
+                        return this.app.vault.getResourcePath(attachment);
+                    }
+                }
+            }
+        }
+        return null;
+    }
 }

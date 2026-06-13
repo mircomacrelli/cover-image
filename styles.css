@@ -1,9 +1,3 @@
-.cover-container {
-    max-width: var(--max-width);
-    width: var(--line-width);
-    margin-inline: var(--content-margin);
-}
-
 @property --cover-image-max-width {
     syntax: '<length>';
     inherits: false;
@@ -16,12 +10,17 @@
     initial-value: 256px;
 }
 
-.cover-container img {
+.cover-container {
+    max-width: var(--max-width);
+    width: var(--line-width);
+    margin-inline: var(--content-margin);
+}
+
+.cover-container > img {
     max-width: var(--cover-image-max-width);
     max-height: var(--cover-image-max-height);
 }
 
-.mod-frontmatter > .cover-container {
-    margin-inline: 0;
-    margin-bottom: 0.75em;
+.markdown-preview-view > .cover-container {
+    padding-bottom: calc(var(--p-spacing) / 2);
 }
