@@ -1,3 +1,6 @@
+import {CoverImageSettings} from './CoverImageSettings';
+
+
 export const IMAGE_TYPES: Set<string> = new Set<string>([
     'avif',
     'bmp',
@@ -15,3 +18,7 @@ export const SELECTORS: Map<string, string> = new Map<string, string>([
 ]);
 
 export const COVER_CONTAINER = 'cover-container';
+
+export const DEFAULT_SETTINGS: CoverImageSettings = {
+    propertyName: 'cover',
+};

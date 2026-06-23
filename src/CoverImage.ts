@@ -1,10 +1,13 @@
 import {MarkdownView, Plugin, TFile, WorkspaceLeaf} from 'obsidian';
-import {SELECTORS, COVER_CONTAINER, IMAGE_TYPES} from './constants';
+import {SELECTORS, COVER_CONTAINER, IMAGE_TYPES, DEFAULT_SETTINGS} from './constants';
+import {CoverImageSettings} from './CoverImageSettings';
 
 
 export default class CoverImage extends Plugin {
+    settings: CoverImageSettings = DEFAULT_SETTINGS;
+
     async onload(): Promise<void> {
-        console.debug('loading plugin cover-image');
+        await this.loadSettings();
 
         this.registerEvent(
             this.app.workspace.on('layout-change', () => {
@@ -31,6 +34,10 @@ export default class CoverImage extends Plugin {
             }
         });
         console.debug('unloaded plugin cover-image');
+    }
+
+    private async loadSettings(): Promise<void> {
+        this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData() as CoverImageSettings);
     }
 
     private updateLeaves(modified: TFile | null = null): void {
@@ -109,7 +116,7 @@ export default class CoverImage extends Plugin {
         if (metadata) {
             const frontmatter = metadata.frontmatter;
             if (frontmatter) {
-                const cover = frontmatter.cover as string;
+                const cover = frontmatter[this.settings.propertyName] as string;
                 if (cover && cover.startsWith('[[') && cover.endsWith(']]')) {
                     const path = cover.slice(2, -2).trim();
                     const attachment = this.app.metadataCache.getFirstLinkpathDest(path, file.path);
