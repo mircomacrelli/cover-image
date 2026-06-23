@@ -1,6 +1,7 @@
 import {MarkdownView, Plugin, TFile, WorkspaceLeaf} from 'obsidian';
 import {SELECTORS, COVER_CONTAINER, IMAGE_TYPES, DEFAULT_SETTINGS} from './constants';
 import {CoverImageSettings} from './CoverImageSettings';
+import {CoverImageSettingsTab} from './CoverImageSettingsTab';
 
 
 export default class CoverImage extends Plugin {
@@ -8,6 +9,8 @@ export default class CoverImage extends Plugin {
 
     async onload(): Promise<void> {
         await this.loadSettings();
+
+        this.addSettingTab(new CoverImageSettingsTab(this.app, this));
 
         this.registerEvent(
             this.app.workspace.on('layout-change', () => {
