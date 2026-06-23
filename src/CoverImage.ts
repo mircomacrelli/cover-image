@@ -43,7 +43,11 @@ export default class CoverImage extends Plugin {
         this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData() as CoverImageSettings);
     }
 
-    private updateLeaves(modified: TFile | null = null): void {
+    async saveSettings(): Promise<void> {
+        await this.saveData(this.settings);
+    }
+
+    updateLeaves(modified: TFile | null = null): void {
         this.app.workspace.iterateAllLeaves((leaf) => {
             const [view, file] = this.getViewAndFile(leaf, modified);
             if (view && file) {
