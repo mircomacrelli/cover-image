@@ -63,24 +63,30 @@ export default class CoverImage extends Plugin {
     }
 
     private updateCover(cover: string, view: MarkdownView): void {
-        const selector = SELECTORS.get(view.getMode());
-        if (selector) {
-            const container = view.contentEl.querySelector(selector);
+        const current = SELECTORS.get(view.getMode());
+        for (const selector of SELECTORS.values()) {
+            const container = view.containerEl.querySelector(selector);
             if (container) {
                 let div = container.querySelector(`.${COVER_CONTAINER}`);
-                if (!div) {
-                    div = createDiv({cls: COVER_CONTAINER});
-                }
-                let img = div.firstElementChild;
-                if (!img) {
-                    img = createEl('img');
-                    div.append(img);
-                }
-                if (cover !== img.getAttribute('src')) {
-                    img.setAttribute('src', cover);
-                }
-                if (!div.parentElement) {
-                    container.prepend(div);
+                if (selector === current) {
+                    if (!div) {
+                        div = createDiv({cls: COVER_CONTAINER});
+                    }
+                    let img = div.firstElementChild;
+                    if (!img) {
+                        img = createEl('img');
+                        div.append(img);
+                    }
+                    if (cover !== img.getAttribute('src')) {
+                        img.setAttribute('src', cover);
+                    }
+                    if (!div.parentElement) {
+                        container.prepend(div);
+                    }
+                } else {
+                    if (div) {
+                        container.removeChild(div);
+                    }
                 }
             }
         }
