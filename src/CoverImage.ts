@@ -1,21 +1,6 @@
 import {MarkdownView, Plugin, TFile, WorkspaceLeaf} from 'obsidian';
+import {SELECTORS, COVER_CONTAINER, IMAGE_TYPES} from './constants';
 
-
-const IMAGE_TYPES: Set<string> = new Set<string>([
-    'avif',
-    'bmp',
-    'gif',
-    'jpeg',
-    'jpg',
-    'png',
-    'svg',
-    'webp'
-]);
-const SELECTORS: Map<string, string> = new Map<string, string>([
-    ['preview', '.markdown-preview-view'],
-    ['source', '.cm-sizer']
-]);
-const COVER_CONTAINER = 'cover-container';
 
 export default class CoverImage extends Plugin {
     async onload(): Promise<void> {
