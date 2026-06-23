@@ -1,25 +1,16 @@
 import {MarkdownView, Plugin, TFile, WorkspaceLeaf} from 'obsidian';
+import {SELECTORS, COVER_CONTAINER, IMAGE_TYPES, DEFAULT_SETTINGS} from './constants';
+import {CoverImageSettings} from './CoverImageSettings';
+import {CoverImageSettingsTab} from './CoverImageSettingsTab';
 
-
-const IMAGE_TYPES: Set<string> = new Set<string>([
-    'avif',
-    'bmp',
-    'gif',
-    'jpeg',
-    'jpg',
-    'png',
-    'svg',
-    'webp'
-]);
-const SELECTORS: Map<string, string> = new Map<string, string>([
-    ['preview', '.markdown-preview-view'],
-    ['source', '.cm-sizer']
-]);
-const COVER_CONTAINER = 'cover-container';
 
 export default class CoverImage extends Plugin {
+    settings: CoverImageSettings = DEFAULT_SETTINGS;
+
     async onload(): Promise<void> {
-        console.debug('loading plugin cover-image');
+        await this.loadSettings();
+
+        this.addSettingTab(new CoverImageSettingsTab(this.app, this));
 
         this.registerEvent(
             this.app.workspace.on('layout-change', () => {
@@ -48,7 +39,15 @@ export default class CoverImage extends Plugin {
         console.debug('unloaded plugin cover-image');
     }
 
-    private updateLeaves(modified: TFile | null = null): void {
+    private async loadSettings(): Promise<void> {
+        this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData() as CoverImageSettings);
+    }
+
+    async saveSettings(): Promise<void> {
+        await this.saveData(this.settings);
+    }
+
+    updateLeaves(modified: TFile | null = null): void {
         this.app.workspace.iterateAllLeaves((leaf) => {
             const [view, file] = this.getViewAndFile(leaf, modified);
             if (view && file) {
@@ -63,24 +62,30 @@ export default class CoverImage extends Plugin {
     }
 
     private updateCover(cover: string, view: MarkdownView): void {
-        const selector = SELECTORS.get(view.getMode());
-        if (selector) {
-            const container = view.contentEl.querySelector(selector);
+        const current = SELECTORS.get(view.getMode());
+        for (const selector of SELECTORS.values()) {
+            const container = view.containerEl.querySelector(selector);
             if (container) {
                 let div = container.querySelector(`.${COVER_CONTAINER}`);
-                if (!div) {
-                    div = createDiv({cls: COVER_CONTAINER});
-                }
-                let img = div.firstElementChild;
-                if (!img) {
-                    img = createEl('img');
-                    div.append(img);
-                }
-                if (cover !== img.getAttribute('src')) {
-                    img.setAttribute('src', cover);
-                }
-                if (!div.parentElement) {
-                    container.prepend(div);
+                if (selector === current) {
+                    if (!div) {
+                        div = createDiv({cls: COVER_CONTAINER});
+                    }
+                    let img = div.firstElementChild;
+                    if (!img) {
+                        img = createEl('img');
+                        div.append(img);
+                    }
+                    if (cover !== img.getAttribute('src')) {
+                        img.setAttribute('src', cover);
+                    }
+                    if (!div.parentElement) {
+                        container.prepend(div);
+                    }
+                } else {
+                    if (div) {
+                        container.removeChild(div);
+                    }
                 }
             }
         }
@@ -118,7 +123,7 @@ export default class CoverImage extends Plugin {
         if (metadata) {
             const frontmatter = metadata.frontmatter;
             if (frontmatter) {
-                const cover = frontmatter.cover as string;
+                const cover = frontmatter[this.settings.propertyName] as string;
                 if (cover && cover.startsWith('[[') && cover.endsWith(']]')) {
                     const path = cover.slice(2, -2).trim();
                     const attachment = this.app.metadataCache.getFirstLinkpathDest(path, file.path);
