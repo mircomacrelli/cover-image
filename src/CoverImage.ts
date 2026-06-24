@@ -36,7 +36,6 @@ export default class CoverImage extends Plugin {
                 this.removeCover(view);
             }
         });
-        console.debug('unloaded plugin cover-image');
     }
 
     private async loadSettings(): Promise<void> {
