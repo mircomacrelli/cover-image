@@ -14,24 +14,18 @@ export class CoverImageSettingsTab extends PluginSettingTab {
     getSettingDefinitions(): SettingDefinitionItem[] {
         return [
             {
-                heading: 'Note',
-                type: 'group',
-                items: [
-                    {
-                        name: 'Property name',
-                        desc: 'Change the property name from which the cover is read',
-                        render: (setting) => {
-                            setting.addText((text) =>
-                                text.setValue(this.plugin.settings.propertyName)
-                                    .onChange(async (value) => {
-                                        this.plugin.settings.propertyName = value;
-                                        this.plugin.updateLeaves();
-                                        await this.plugin.saveSettings();
-                                    })
-                            )
-                        }
-                    }
-                ]
+                name: 'Property name',
+                desc: 'Change the property name from which the cover is read',
+                render: (setting) => {
+                    setting.addText((text) =>
+                        text.setValue(this.plugin.settings.propertyName)
+                            .onChange(async (value) => {
+                                this.plugin.settings.propertyName = value;
+                                this.plugin.updateLeaves();
+                                await this.plugin.saveSettings();
+                            })
+                    )
+                }
             }
         ];
     }
