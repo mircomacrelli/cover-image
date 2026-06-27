@@ -1,21 +1,14 @@
-import {App, debounce, Debouncer, PluginSettingTab, Setting, SettingDefinitionItem, TextComponent} from 'obsidian';
+import {App, PluginSettingTab, Setting, SettingDefinitionItem, TextComponent} from 'obsidian';
 import CoverImage from './CoverImage';
 
 
 export class CoverImageSettingsTab extends PluginSettingTab {
     private plugin: CoverImage;
-    private readonly updatePropertyName: Debouncer<[value: string], Promise<void>>;
 
     constructor(app: App, plugin: CoverImage) {
         super(app, plugin);
         this.plugin = plugin;
         this.icon = 'image';
-
-        this.updatePropertyName = debounce(async (value: string): Promise<void> => {
-            this.plugin.settings.propertyName = value;
-            await this.plugin.saveSettings();
-            this.plugin.updateLeaves();
-        }, 500);
     }
 
     getSettingDefinitions(): SettingDefinitionItem[] {
@@ -27,7 +20,9 @@ export class CoverImageSettingsTab extends PluginSettingTab {
                     setting.addText((text: TextComponent): TextComponent =>
                         text.setValue(this.plugin.settings.propertyName)
                             .onChange(async (value: string): Promise<void> => {
-                                this.updatePropertyName(value);
+                                this.plugin.settings.propertyName = value;
+                                await this.plugin.saveSettings();
+                                this.plugin.updateAll();
                             })
                     );
                 }

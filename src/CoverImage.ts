@@ -1,4 +1,14 @@
-import {CachedMetadata, FrontMatterCache, MarkdownView, Plugin, TFile, View, WorkspaceLeaf} from 'obsidian';
+import {
+    CachedMetadata,
+    debounce,
+    Debouncer,
+    FrontMatterCache,
+    MarkdownView,
+    Plugin,
+    TFile,
+    View,
+    WorkspaceLeaf
+} from 'obsidian';
 import {SELECTORS, COVER_CONTAINER, IMAGE_TYPES, DEFAULT_SETTINGS} from './constants';
 import {CoverImageSettings} from './CoverImageSettings';
 import {CoverImageSettingsTab} from './CoverImageSettingsTab';
@@ -6,6 +16,14 @@ import {CoverImageSettingsTab} from './CoverImageSettingsTab';
 
 export default class CoverImage extends Plugin {
     settings: CoverImageSettings = DEFAULT_SETTINGS;
+
+    readonly updateAll: Debouncer<[], void> = debounce((): void => {
+        this.updateLeaves();
+    }, 500);
+
+    readonly updateFile: Debouncer<[modified: TFile | null], void> = debounce((modified: TFile | null) => {
+        this.updateLeaves(modified);
+    }, 500);
 
     async onload(): Promise<void> {
         await this.loadSettings();
@@ -20,7 +38,7 @@ export default class CoverImage extends Plugin {
 
         this.registerEvent(
             this.app.metadataCache.on('changed', (file: TFile): void => {
-                this.updateLeaves(file);
+                this.updateFile(file);
             })
         );
 
@@ -46,7 +64,7 @@ export default class CoverImage extends Plugin {
         await this.saveData(this.settings);
     }
 
-    updateLeaves(modified: TFile | null = null): void {
+    private updateLeaves(modified: TFile | null = null): void {
         this.app.workspace.iterateAllLeaves((leaf: WorkspaceLeaf): void => {
             const [view, file] = this.getViewAndFile(leaf, modified);
             if (view && file) {
