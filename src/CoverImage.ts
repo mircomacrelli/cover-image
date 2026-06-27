@@ -66,24 +66,22 @@ export default class CoverImage extends Plugin {
             const container: Element | null = view.containerEl.querySelector(selector);
             if (container) {
                 let div: Element | null = container.querySelector(`.${COVER_CONTAINER}`);
-                if (selector === current) {
-                    if (!div) {
-                        div = createDiv({cls: COVER_CONTAINER});
-                    }
-                    let img: Element | null = div.firstElementChild;
-                    if (!img) {
-                        img = createEl('img');
-                        div.append(img);
-                    }
-                    if (cover !== img.getAttribute('src')) {
-                        img.setAttribute('src', cover);
-                    }
-                    if (!div.parentElement) {
-                        container.prepend(div);
+                if (div) {
+                    if (selector === current) {
+                        const img: Element | null = div.firstElementChild;
+                        if (img && cover !== img.getAttribute('src')) {
+                            img.setAttribute('src', cover);
+                        }
+                    } else {
+                        container.removeChild(div);
                     }
                 } else {
-                    if (div) {
-                        container.removeChild(div);
+                    if (selector === current) {
+                        div = createDiv({cls: COVER_CONTAINER});
+                        const img: Element = createEl('img');
+                        img.setAttribute('src', cover);
+                        div.append(img);
+                        container.prepend(div);
                     }
                 }
             }
