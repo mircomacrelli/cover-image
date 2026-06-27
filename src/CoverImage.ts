@@ -1,4 +1,14 @@
-import {MarkdownView, Plugin, TFile, WorkspaceLeaf} from 'obsidian';
+import {
+    CachedMetadata,
+    debounce,
+    Debouncer,
+    FrontMatterCache,
+    MarkdownView,
+    Plugin,
+    TFile,
+    View,
+    WorkspaceLeaf
+} from 'obsidian';
 import {SELECTORS, COVER_CONTAINER, IMAGE_TYPES, DEFAULT_SETTINGS} from './constants';
 import {CoverImageSettings} from './CoverImageSettings';
 import {CoverImageSettingsTab} from './CoverImageSettingsTab';
@@ -7,30 +17,38 @@ import {CoverImageSettingsTab} from './CoverImageSettingsTab';
 export default class CoverImage extends Plugin {
     settings: CoverImageSettings = DEFAULT_SETTINGS;
 
+    readonly updateAll: Debouncer<[], void> = debounce((): void => {
+        this.updateLeaves();
+    }, 500);
+
+    readonly updateFile: Debouncer<[modified: TFile | null], void> = debounce((modified: TFile | null) => {
+        this.updateLeaves(modified);
+    }, 500);
+
     async onload(): Promise<void> {
         await this.loadSettings();
 
         this.addSettingTab(new CoverImageSettingsTab(this.app, this));
 
         this.registerEvent(
-            this.app.workspace.on('layout-change', () => {
+            this.app.workspace.on('layout-change', (): void => {
                 this.updateLeaves();
             })
         );
 
         this.registerEvent(
-            this.app.metadataCache.on('changed', (file: TFile) => {
-                this.updateLeaves(file);
+            this.app.metadataCache.on('changed', (file: TFile): void => {
+                this.updateFile(file);
             })
         );
 
-        this.app.workspace.onLayoutReady(() => {
+        this.app.workspace.onLayoutReady((): void => {
             this.updateLeaves();
         });
     }
 
     onunload(): void {
-        this.app.workspace.iterateAllLeaves((leaf) => {
+        this.app.workspace.iterateAllLeaves((leaf: WorkspaceLeaf): void => {
             const [view] = this.getViewAndFile(leaf);
             if (view) {
                 this.removeCover(view);
@@ -46,11 +64,11 @@ export default class CoverImage extends Plugin {
         await this.saveData(this.settings);
     }
 
-    updateLeaves(modified: TFile | null = null): void {
-        this.app.workspace.iterateAllLeaves((leaf) => {
+    private updateLeaves(modified: TFile | null = null): void {
+        this.app.workspace.iterateAllLeaves((leaf: WorkspaceLeaf): void => {
             const [view, file] = this.getViewAndFile(leaf, modified);
             if (view && file) {
-                const cover = this.getCover(file);
+                const cover: string | null = this.getCover(file);
                 if (cover) {
                     this.updateCover(cover, view);
                 } else {
@@ -61,29 +79,27 @@ export default class CoverImage extends Plugin {
     }
 
     private updateCover(cover: string, view: MarkdownView): void {
-        const current = SELECTORS.get(view.getMode());
+        const current: string | undefined = SELECTORS.get(view.getMode());
         for (const selector of SELECTORS.values()) {
-            const container = view.containerEl.querySelector(selector);
+            const container: Element | null = view.containerEl.querySelector(selector);
             if (container) {
-                let div = container.querySelector(`.${COVER_CONTAINER}`);
-                if (selector === current) {
-                    if (!div) {
-                        div = createDiv({cls: COVER_CONTAINER});
-                    }
-                    let img = div.firstElementChild;
-                    if (!img) {
-                        img = createEl('img');
-                        div.append(img);
-                    }
-                    if (cover !== img.getAttribute('src')) {
-                        img.setAttribute('src', cover);
-                    }
-                    if (!div.parentElement) {
-                        container.prepend(div);
+                let div: Element | null = container.querySelector(`.${COVER_CONTAINER}`);
+                if (div) {
+                    if (selector === current) {
+                        const img: Element | null = div.firstElementChild;
+                        if (img && cover !== img.getAttribute('src')) {
+                            img.setAttribute('src', cover);
+                        }
+                    } else {
+                        container.removeChild(div);
                     }
                 } else {
-                    if (div) {
-                        container.removeChild(div);
+                    if (selector === current) {
+                        div = createDiv({cls: COVER_CONTAINER});
+                        const img: Element = createEl('img');
+                        img.setAttribute('src', cover);
+                        div.append(img);
+                        container.prepend(div);
                     }
                 }
             }
@@ -92,9 +108,9 @@ export default class CoverImage extends Plugin {
 
     private removeCover(view: MarkdownView): void {
         for (const selector of SELECTORS.values()) {
-            const container = view.contentEl.querySelector(selector);
+            const container: Element | null = view.contentEl.querySelector(selector);
             if (container) {
-                let div = container.querySelector(`.${COVER_CONTAINER}`);
+                let div: Element | null = container.querySelector(`.${COVER_CONTAINER}`);
                 if (div) {
                     div.remove();
                 }
@@ -104,9 +120,9 @@ export default class CoverImage extends Plugin {
 
     private getViewAndFile(leaf: WorkspaceLeaf, modified: TFile | null = null): [view: MarkdownView | null, file: TFile | null] {
         if (!leaf.isDeferred) {
-            const view = leaf.view;
+            const view: View = leaf.view;
             if (view instanceof MarkdownView) {
-                const file = view.file;
+                const file: TFile | null = view.file;
                 if (file && file.extension === 'md') {
                     if (!modified || modified.path === file.path) {
                         return [view, file];
@@ -118,14 +134,14 @@ export default class CoverImage extends Plugin {
     }
 
     private getCover(file: TFile): string | null {
-        const metadata = this.app.metadataCache.getFileCache(file);
+        const metadata: CachedMetadata | null = this.app.metadataCache.getFileCache(file);
         if (metadata) {
-            const frontmatter = metadata.frontmatter;
+            const frontmatter: FrontMatterCache | undefined = metadata.frontmatter;
             if (frontmatter) {
                 const cover = frontmatter[this.settings.propertyName] as string;
                 if (cover && cover.startsWith('[[') && cover.endsWith(']]')) {
-                    const path = cover.slice(2, -2).trim();
-                    const attachment = this.app.metadataCache.getFirstLinkpathDest(path, file.path);
+                    const path: string = cover.slice(2, -2).trim();
+                    const attachment: TFile | null = this.app.metadataCache.getFirstLinkpathDest(path, file.path);
                     if (attachment && IMAGE_TYPES.has(attachment.extension)) {
                         return this.app.vault.getResourcePath(attachment);
                     }

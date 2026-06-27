@@ -1,9 +1,9 @@
-import {App, PluginSettingTab, SettingDefinitionItem} from 'obsidian';
+import {App, PluginSettingTab, Setting, SettingDefinitionItem, TextComponent} from 'obsidian';
 import CoverImage from './CoverImage';
 
 
 export class CoverImageSettingsTab extends PluginSettingTab {
-    plugin: CoverImage;
+    private plugin: CoverImage;
 
     constructor(app: App, plugin: CoverImage) {
         super(app, plugin);
@@ -14,24 +14,18 @@ export class CoverImageSettingsTab extends PluginSettingTab {
     getSettingDefinitions(): SettingDefinitionItem[] {
         return [
             {
-                heading: 'Note',
-                type: 'group',
-                items: [
-                    {
-                        name: 'Property name',
-                        desc: 'Change the property name from which the cover is read',
-                        render: (setting) => {
-                            setting.addText((text) =>
-                                text.setValue(this.plugin.settings.propertyName)
-                                    .onChange(async (value) => {
-                                        this.plugin.settings.propertyName = value;
-                                        this.plugin.updateLeaves();
-                                        await this.plugin.saveSettings();
-                                    })
-                            )
-                        }
-                    }
-                ]
+                name: 'Property name',
+                desc: 'Change the property name from which the cover is read',
+                render: (setting: Setting): void => {
+                    setting.addText((text: TextComponent): TextComponent =>
+                        text.setValue(this.plugin.settings.propertyName)
+                            .onChange(async (value: string): Promise<void> => {
+                                this.plugin.settings.propertyName = value;
+                                await this.plugin.saveSettings();
+                                this.plugin.updateAll();
+                            })
+                    );
+                }
             }
         ];
     }

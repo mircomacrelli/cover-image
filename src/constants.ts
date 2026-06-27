@@ -20,5 +20,5 @@ export const SELECTORS: Map<string, string> = new Map<string, string>([
 export const COVER_CONTAINER = 'cover-container';
 
 export const DEFAULT_SETTINGS: CoverImageSettings = {
-    propertyName: 'cover',
+    propertyName: 'cover'
 };
